@@ -2,71 +2,98 @@ const express = require("express");
 const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
 
+const getRandomInteger = require("./lib/getRandomInteger");
+const paramsToArray = require("./lib/paramsToArray");
+
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
 app.use(cors());
-
 const db = new sqlite3.Database("./prisma/database.db");
 
-app.get("/api", (req, res) => {
-  let { types, difficulties } = req.query;
-
+/* picks a random question from the database */
+app.get("/api/random", (req, res) => {
   const response = {
-    "question": "",
-    "answers": [],
+    question: "",
+    answers: [],
   };
 
-  if (!types || !difficulties) {
+  db.get('SELECT COUNT(*) as questionCount FROM "Question"', (err, row) => {
+    if (err) {
+      res.json(response);
+    }
+
+    const questionCount = row.questionCount;
+    const randomId = getRandomInteger(questionCount);
+
+    db.get('SELECT content FROM "Question" WHERE id = ?', [
+      randomId,
+    ], (err, row) => {
+      if (err) {
+        res.json(response);
+      }
+
+      response.question = row.content;
+
+      db.all('SELECT content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
+        randomId,
+      ], (err, rows) => {
+        if (err) {
+          res.json(response);
+        }
+
+        response.answers = rows;
+        res.json(response);
+      });
+    });
+  });
+});
+
+/* picks a random question based on `type` and `difficulty` */
+app.get("/api/get", (req, res) => {
+  const response = {
+    question: "",
+    answers: [],
+  };
+
+  const { type, difficulty } = req.query;
+
+  if (!type || !difficulty) {
     res.json(response);
   }
 
-  if (!Array.isArray(types))
-    types = types ? [types] : [];
+  // SQL injection prevention
+  const typesArray = paramsToArray(type);
+  const typesTuple = typesArray.map(() => "?").join(", ");
 
-  if (!Array.isArray(difficulties))
-    difficulties = difficulties ? [difficulties] : [];
+  // SQL injection prevention
+  const difficultiesArray = paramsToArray(difficulty);
+  const difficultiesTuple = difficultiesArray.map(() => "?").join(", ");
 
-  let typeQuery = "";
-  switch (types.length) {
-    case 1:
-      typeQuery = `type = '${types[0]}'`;
-      break;
-    case 2:
-      typeQuery = `type = '${types[0]}' OR type = '${types[1]}'`;
-      break;
-    case 3:
-      typeQuery = `type = '${types[0]}' OR type = '${types[1]}' OR type = '${types[2]}'`;
-      break;
-  }
+  const questionQuery = `SELECT id, content FROM "Question" WHERE type IN (${typesTuple}) AND difficulty IN (${difficultiesTuple}) ORDER BY RANDOM()`;
 
-  let difficultyQuery = "";
-  switch (difficulties.length) {
-    case 1:
-      difficultyQuery = `difficulty = '${difficulties[0]}'`;
-      break;
-    case 2:
-      difficultyQuery = `difficulty = '${difficulties[0]}' OR difficulty = '${difficulties[1]}'`;
-      break;
-    case 3:
-      difficultyQuery = `difficulty = '${difficulties[0]}' OR difficulty = '${difficulties[1]}' OR difficulty = '${difficulties[2]}'`;
-      break;
-    case 4:
-      difficultyQuery = `difficulty = '${difficulties[0]}' OR difficulty = '${difficulties[1]}' OR difficulty = '${difficulties[2]}' OR difficulty = '${difficulties[3]}'`;
-      break;
-  }
+  db.get(questionQuery, [
+    ...typesArray,
+    ...difficultiesArray,
+  ], (err, row) => {
+    if (err) {
+      res.json(response);
+    }
 
-  const query = `SELECT id, content FROM "Question" WHERE (${typeQuery}) AND (${difficultyQuery}) ORDER BY RANDOM() LIMIT 1`;
-
-  db.get(query, (err, row) => {
     const { id, content } = row;
-    response["question"] = content;
+    response.question = content;
 
-    db.all('SELECT content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [id], (err, rows) => {
-      response["answers"] = rows;
+    db.all('SELECT content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
+      id,
+    ], (err, rows) => {
+      if (err) {
+        res.json(response);
+      }
+
+      response.answers = rows;
       res.json(response);
     });
   });
 });
 
-app.listen(port);
+app.listen(PORT);
