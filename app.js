@@ -14,8 +14,8 @@ const db = new sqlite3.Database("./prisma/database.db");
 /* picks a random question from the database */
 app.get("/api/random", (req, res) => {
   const response = {
-    question: "",
-    answers: [],
+    question: { id: undefined, content: undefined },
+    answers: undefined,
   };
 
   db.get('SELECT COUNT(*) as questionCount FROM "Question"', (err, row) => {
@@ -26,14 +26,14 @@ app.get("/api/random", (req, res) => {
     const questionCount = row.questionCount;
     const randomId = getRandomInteger(questionCount);
 
-    db.get('SELECT content FROM "Question" WHERE id = ?', [
+    db.get('SELECT id, content FROM "Question" WHERE id = ?', [
       randomId,
     ], (err, row) => {
       if (err) {
         res.json(response);
       }
 
-      response.question = row.content;
+      response.question = row;
 
       db.all('SELECT id, content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
         randomId,
@@ -52,8 +52,8 @@ app.get("/api/random", (req, res) => {
 /* picks a random question based on `type` and `difficulty` */
 app.get("/api/get", (req, res) => {
   const response = {
-    question: "",
-    answers: [],
+    question: { id: undefined, content: undefined },
+    answers: undefined,
   };
 
   const { type, difficulty } = req.query;
@@ -64,13 +64,13 @@ app.get("/api/get", (req, res) => {
 
   // SQL injection prevention
   const typesArray = paramsToArray(type);
-  const typesTuple = typesArray.map(() => "?").join(", ");
+  const typesMask = typesArray.map(() => "?").join(", ");
 
   // SQL injection prevention
   const difficultiesArray = paramsToArray(difficulty);
-  const difficultiesTuple = difficultiesArray.map(() => "?").join(", ");
+  const difficultiesMask = difficultiesArray.map(() => "?").join(", ");
 
-  const questionQuery = `SELECT id, content FROM "Question" WHERE type IN (${typesTuple}) AND difficulty IN (${difficultiesTuple}) ORDER BY RANDOM()`;
+  const questionQuery = `SELECT id, content FROM "Question" WHERE type IN (${typesMask}) AND difficulty IN (${difficultiesMask}) ORDER BY RANDOM() LIMIT 1`;
 
   db.get(questionQuery, [
     ...typesArray,
@@ -80,11 +80,11 @@ app.get("/api/get", (req, res) => {
       res.json(response);
     }
 
-    const { id, content } = row;
-    response.question = content;
+    response.question = row;
+    const questionId = row.id;
 
     db.all('SELECT id, content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
-      id,
+      questionId,
     ], (err, rows) => {
       if (err) {
         res.json(response);
