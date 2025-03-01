@@ -35,7 +35,7 @@ app.get("/api/random", (req, res) => {
 
       response.question = row.content;
 
-      db.all('SELECT content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
+      db.all('SELECT id, content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
         randomId,
       ], (err, rows) => {
         if (err) {
@@ -83,7 +83,7 @@ app.get("/api/get", (req, res) => {
     const { id, content } = row;
     response.question = content;
 
-    db.all('SELECT content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
+    db.all('SELECT id, content, correct FROM "Answer" WHERE questionId = ? ORDER BY RANDOM()', [
       id,
     ], (err, rows) => {
       if (err) {
