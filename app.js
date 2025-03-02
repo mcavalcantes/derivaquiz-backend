@@ -57,7 +57,6 @@ app.get("/api/get", (req, res) => {
   };
 
   const { type, difficulty } = req.query;
-  console.log(type, difficulty);
 
   if (!type || !difficulty) {
     return res.json(response);
