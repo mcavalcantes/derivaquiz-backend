@@ -20,7 +20,7 @@ app.get("/api/random", (req, res) => {
 
   db.get('SELECT COUNT(*) as questionCount FROM "Question"', (err, row) => {
     if (err) {
-      res.json(response);
+      return res.json(response);
     }
 
     const questionCount = row.questionCount;
@@ -30,7 +30,7 @@ app.get("/api/random", (req, res) => {
       randomId,
     ], (err, row) => {
       if (err) {
-        res.json(response);
+        return res.json(response);
       }
 
       response.question = row;
@@ -39,11 +39,11 @@ app.get("/api/random", (req, res) => {
         randomId,
       ], (err, rows) => {
         if (err) {
-          res.json(response);
+          return res.json(response);
         }
 
         response.answers = rows;
-        res.json(response);
+        return res.json(response);
       });
     });
   });
@@ -57,9 +57,10 @@ app.get("/api/get", (req, res) => {
   };
 
   const { type, difficulty } = req.query;
+  console.log(type, difficulty);
 
   if (!type || !difficulty) {
-    res.json(response);
+    return res.json(response);
   }
 
   // SQL injection prevention
@@ -77,7 +78,7 @@ app.get("/api/get", (req, res) => {
     ...difficultiesArray,
   ], (err, row) => {
     if (err) {
-      res.json(response);
+      return res.json(response);
     }
 
     response.question = row;
@@ -87,11 +88,11 @@ app.get("/api/get", (req, res) => {
       questionId,
     ], (err, rows) => {
       if (err) {
-        res.json(response);
+        return res.json(response);
       }
 
       response.answers = rows;
-      res.json(response);
+      return res.json(response);
     });
   });
 });
